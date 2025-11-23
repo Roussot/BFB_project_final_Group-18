@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Test Login/Register Links</title>
+  <link href="assets/styles.css" rel="stylesheet">
+</head>
+<body>
+  <main class="container py-5">
+    <h1 class="h4">Test: Login / Register Links</h1>
+    <p>Use these buttons to open the login and register pages. If these work, the issue is with the navbar wiring.</p>
+    <div class="d-flex gap-2">
+      <a class="btn btn-primary" id="openLogin" href="login.html">Open Login (anchor)</a>
+      <button class="btn btn-outline-primary" id="btnLogin">Open Login (JS)</button>
+      <a class="btn btn-success" id="openRegister" href="register.html">Open Register (anchor)</a>
+      <button class="btn btn-outline-success" id="btnRegister">Open Register (JS)</button>
+    </div>
+    <div class="mt-4">
+      <p id="status">Status: waiting</p>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('btnLogin').addEventListener('click', function(){
+      document.getElementById('status').textContent = 'Navigating to login.html via JS...';
+      window.location.href = 'login.html';
+    });
+    document.getElementById('btnRegister').addEventListener('click', function(){
+      document.getElementById('status').textContent = 'Navigating to register.html via JS...';
+      window.location.href = 'register.html';
+    });
+  </script>
+</body>
+</html>

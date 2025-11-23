@@ -1,0 +1,136 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Marketplace | Agrimarket</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="assets/styles.css" rel="stylesheet">
+</head><body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-success">
+  <div class="container">
+    <a class="navbar-brand" href="index.html">🌾 Agrimarket</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div id="nav" class="collapse navbar-collapse">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a id="navMarketplace" class="nav-link" href="marketplace.html">Marketplace</a></li>
+        <li class="nav-item"><a id="navUpload" class="nav-link" href="farmer-upload.html">Upload Stock</a></li>
+        <li class="nav-item"><a id="navLogistics" class="nav-link" href="logistics.html">Logistics</a></li>
+        <li class="nav-item"><a class="nav-link" href="analytics.html">Analytics</a></li>
+        <li class="nav-item"><a class="nav-link" href="orders.html">Orders</a></li>
+      </ul>
+      <span class="navbar-text me-3" id="navUserName"></span>
+      <ul class="navbar-nav">
+        <li class="nav-item"><a id="navLogin" class="nav-link" href="login.html">Login</a></li>
+        <li class="nav-item"><a id="navRegister" class="nav-link" href="register.html">Register</a></li>
+        <li class="nav-item"><a id="navLogout" class="nav-link" href="#">Logout</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+
+<main class="container py-4">
+  <h1 class="h4">Marketplace</h1>
+  <div class="row g-2 mb-3">
+    <div class="col-md-4"><input id="q" class="form-control" placeholder="Search crop"></div>
+    <div class="col-md-3">
+      <select id="filterRegion" class="form-select">
+        <option value="">All regions</option><option>North</option><option>South</option><option>East</option><option>West</option>
+      </select>
+    </div>
+    <div class="col-md-2 d-grid"><button id="searchBtn" class="btn btn-outline-success">Search</button></div>
+  </div>
+  <div id="list" class="row g-3"></div>
+</main>
+
+<script src="assets/app.js"></script>
+<script src="assets/auth.js"></script>
+<script src="assets/api.js"></script>
+<script>
+renderAuthNav();
+
+const list = document.getElementById('list');
+let allStock = [];
+
+async function loadStock() {
+  try {
+    const q = document.getElementById('q').value || '';
+    const r = document.getElementById('filterRegion').value || '';
+
+    const filters = {};
+    if (q) filters.crop = q;
+    if (r) filters.location = r;
+
+    allStock = await StockAPI.getAll(filters);
+    render();
+  } catch (error) {
+    console.error('Error loading stock:', error);
+    list.innerHTML = '<div class="col-12"><div class="alert alert-danger">Failed to load stock. Please try again.</div></div>';
+  }
+}
+
+function render() {
+  if (allStock.length === 0) {
+    list.innerHTML = '<div class="col-12"><div class="alert alert-info">No listings found.</div></div>';
+    return;
+  }
+
+  list.innerHTML = allStock.map(s => `
+    <div class="col-md-4">
+      <div class="card card-hover h-100">
+        <div class="card-body">
+          <h5 class="card-title">${s.crop} <span class="badge bg-light text-dark">${s.location || 'N/A'}</span></h5>
+          <p class="mb-1">Price: <b>R ${s.price_per_kg}</b> / kg</p>
+          <p class="mb-1">Available: <b>${s.qty_kg} kg</b></p>
+          <p class="text-muted small mb-2">Harvest: ${s.harvest_date || 'n/a'}</p>
+          <div class="input-group">
+            <input type="number" min="1" max="${s.qty_kg}" class="form-control" placeholder="Qty (kg)" id="qty-${s.id}">
+            <button class="btn btn-success" onclick="order('${s.id}')">Order</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function order(stockId) {
+  const qty = Number(document.getElementById('qty-' + stockId).value || 0);
+  const stock = allStock.find(x => x.id === stockId);
+
+  if (!qty || qty > stock.qty_kg) {
+    alert('Enter a valid quantity.');
+    return;
+  }
+
+  const current = AUTH.currentUser();
+  const buyerId = (current && current.id) ? current.id : 'u_buyer1';
+
+  try {
+    await OrdersAPI.create({
+      stock_id: stock.id,
+      buyer_id: buyerId,
+      qty_kg: qty,
+      price_per_kg: stock.price_per_kg,
+      status: 'PENDING_CAPACITY'
+    });
+
+    alert('Order created. Proceed to capacity check in Orders page.');
+    location.href = 'orders.html';
+  } catch (error) {
+    console.error('Error creating order:', error);
+    alert('Failed to create order. Please try again.');
+  }
+}
+
+document.getElementById('searchBtn').onclick = loadStock;
+loadStock();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<footer class="bg-white mt-5 border-top">
+  <div class="container py-4 text-center small">
+    <div>Agrimarket — demo supply chain web app. See <a href="README.md">README</a> for project details and database schema.</div>
+    <div class="mt-2">&copy; 2025 Agrimarket Demo</div>
+  </div>
+</footer>
+</body></html>

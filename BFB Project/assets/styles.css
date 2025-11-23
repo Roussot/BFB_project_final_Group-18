@@ -1,0 +1,6 @@
+:root { --brand:#198754; } /* bootstrap 'success' */
+body { background:#f8f9fa; }
+.navbar-brand { font-weight:600; }
+.badge-chip { border:1px solid #dee2e6; background:#fff; border-radius:999px; padding:.2rem .6rem; }
+.card-hover { transition:transform .12s ease, box-shadow .12s ease; }
+.card-hover:hover { transform:translateY(-1px); box-shadow:0 .75rem 1rem rgba(0,0,0,.08); }

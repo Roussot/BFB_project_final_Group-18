@@ -1,0 +1,125 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Upload Stock | Agrimarket</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="assets/styles.css" rel="stylesheet">
+</head><body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-success">
+  <div class="container">
+    <a class="navbar-brand" href="index.html">🌾 Agrimarket</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div id="nav" class="collapse navbar-collapse">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a id="navMarketplace" class="nav-link" href="marketplace.html">Marketplace</a></li>
+        <li class="nav-item"><a id="navUpload" class="nav-link" href="farmer-upload.html">Upload Stock</a></li>
+        <li class="nav-item"><a id="navLogistics" class="nav-link" href="logistics.html">Logistics</a></li>
+        <li class="nav-item"><a class="nav-link" href="analytics.html">Analytics</a></li>
+        <li class="nav-item"><a class="nav-link" href="orders.html">Orders</a></li>
+      </ul>
+      <span class="navbar-text me-3" id="navUserName"></span>
+      <ul class="navbar-nav">
+        <li class="nav-item"><a id="navLogin" class="nav-link" href="login.html">Login</a></li>
+        <li class="nav-item"><a id="navRegister" class="nav-link" href="register.html">Register</a></li>
+        <li class="nav-item"><a id="navLogout" class="nav-link" href="#">Logout</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+
+<main class="container py-4">
+  <h1 class="h4">Farmer: Upload Stock</h1>
+  <form id="uploadForm" class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label">Crop</label>
+      <input class="form-control" id="crop" list="crops" required>
+      <datalist id="crops"><option>Tomatoes</option><option>Potatoes</option><option>Cabbage</option><option>Spinach</option></datalist>
+    </div>
+    <div class="col-md-3"><label class="form-label">Quantity (kg)</label><input type="number" min="1" class="form-control" id="qty" required></div>
+    <div class="col-md-3"><label class="form-label">Harvest date</label><input type="date" class="form-control" id="harvest" required></div>
+    <div class="col-md-4"><label class="form-label">Location (region)</label>
+      <select id="region" class="form-select" required><option>North</option><option>South</option><option>East</option><option>West</option></select>
+    </div>
+    <div class="col-md-4"><label class="form-label">Price (per kg)</label><input type="number" min="0" step="0.01" class="form-control" id="price" required></div>
+    <div class="col-md-4"><label class="form-label">Variety (optional)</label><input class="form-control" id="variety"></div>
+    <div class="col-12 d-flex gap-2 justify-content-end">
+      <button type="button" id="suggest" class="btn btn-outline-secondary">Suggest Price</button>
+      <button class="btn btn-success">Publish</button>
+    </div>
+  </form>
+
+  <div id="msg" class="mt-3"></div>
+</main>
+
+<script src="assets/app.js"></script>
+<script src="assets/auth.js"></script>
+<script src="assets/api.js"></script>
+<script>
+renderAuthNav();
+var role = AUTH.currentRole();
+var msg = document.getElementById('msg');
+if(!role || role !== 'farmer'){
+  msg.innerHTML = '<div class="alert alert-warning">You are not signed in as a farmer. To fully use this page, sign in as a farmer (demo: farmer@example.com / pass123) or register.</div>';
+}
+
+var form = document.getElementById('uploadForm');
+
+// Suggest price functionality (basic)
+document.getElementById('suggest').onclick = async function(){
+  var crop = document.getElementById('crop').value.trim();
+  var price = Number(document.getElementById('price').value || 0);
+
+  try {
+    const kpiData = await AnalyticsAPI.getKPIs();
+    const avgPrices = kpiData.average_prices_by_crop || [];
+    const cropData = avgPrices.find(item => item.crop.toLowerCase() === crop.toLowerCase());
+
+    if (cropData && cropData.avg_price) {
+      document.getElementById('price').value = cropData.avg_price.toFixed(2);
+      msg.innerHTML = `<div class="alert alert-info">Suggested price: <b>R ${cropData.avg_price.toFixed(2)}</b> (based on market average)</div>`;
+    } else {
+      msg.innerHTML = `<div class="alert alert-info">No historical data for ${crop}. Using current price.</div>`;
+    }
+  } catch (error) {
+    console.error('Error getting price suggestion:', error);
+    msg.innerHTML = '<div class="alert alert-warning">Unable to fetch price suggestion.</div>';
+  }
+};
+
+form.onsubmit = async function(e){
+  e.preventDefault();
+  var current = AUTH.currentUser();
+  var farmerId = (current && current.id) ? current.id : 'u_farmer1';
+
+  const stockData = {
+    farmer_id: farmerId,
+    crop: document.getElementById('crop').value.trim(),
+    variety: document.getElementById('variety').value.trim() || null,
+    qty_kg: Number(document.getElementById('qty').value),
+    location: document.getElementById('region').value,
+    harvest_date: document.getElementById('harvest').value,
+    price_per_kg: Number(document.getElementById('price').value),
+    status: 'available'
+  };
+
+  try {
+    await StockAPI.create(stockData);
+    msg.innerHTML = '<div class="alert alert-success">Stock published successfully!</div>';
+    form.reset();
+  } catch (error) {
+    console.error('Error creating stock:', error);
+    msg.innerHTML = '<div class="alert alert-danger">Failed to publish stock. Please try again.</div>';
+  }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<footer class="bg-white mt-5 border-top">
+  <div class="container py-4 text-center small">
+    <div>Agrimarket — demo supply chain web app. See <a href="README.md">README</a> for project details and database schema.</div>
+    <div class="mt-2">&copy; 2025 Agrimarket Demo</div>
+  </div>
+</footer>
+</body></html>

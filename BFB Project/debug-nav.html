@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Debug Nav</title>
+<link href="assets/styles.css" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-success">
+  <div class="container">
+    <a class="navbar-brand" href="index.html">🌾 Agrimarket</a>
+    <div id="navContent">
+      <ul class="navbar-nav">
+        <li class="nav-item"><a id="navLogin" class="nav-link" href="login.html">Login</a></li>
+        <li class="nav-item"><a id="navRegister" class="nav-link" href="register.html">Register</a></li>
+        <li class="nav-item"><a id="navLogout" class="nav-link" href="#">Logout</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+<main class="container py-4">
+  <p>This page forces login/register visible and logs clicks to console.</p>
+</main>
+<script src="assets/auth.js"></script>
+<script>
+  // Force visibility for debugging
+  var l = document.getElementById('navLogin');
+  var r = document.getElementById('navRegister');
+  if(l) { l.style.display = ''; l.addEventListener('click', function(){ console.log('navLogin clicked'); }); }
+  if(r) { r.style.display = ''; r.addEventListener('click', function(){ console.log('navRegister clicked'); }); }
+</script>
+</body>
+</html>

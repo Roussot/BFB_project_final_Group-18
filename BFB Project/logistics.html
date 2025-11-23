@@ -1,0 +1,192 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Logistics | Agrimarket</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="assets/styles.css" rel="stylesheet">
+</head><body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-success">
+  <div class="container">
+    <a class="navbar-brand" href="index.html">🌾 Agrimarket</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div id="nav" class="collapse navbar-collapse">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a id="navMarketplace" class="nav-link" href="marketplace.html">Marketplace</a></li>
+        <li class="nav-item"><a id="navUpload" class="nav-link" href="farmer-upload.html">Upload Stock</a></li>
+        <li class="nav-item"><a id="navLogistics" class="nav-link" href="logistics.html">Logistics</a></li>
+        <li class="nav-item"><a class="nav-link" href="analytics.html">Analytics</a></li>
+        <li class="nav-item"><a class="nav-link" href="orders.html">Orders</a></li>
+      </ul>
+      <span class="navbar-text me-3" id="navUserName"></span>
+      <ul class="navbar-nav">
+        <li class="nav-item"><a id="navLogin" class="nav-link" href="login.html">Login</a></li>
+        <li class="nav-item"><a id="navRegister" class="nav-link" href="register.html">Register</a></li>
+        <li class="nav-item"><a id="navLogout" class="nav-link" href="#">Logout</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+
+<main class="container py-4">
+  <h1 class="h4">Logistics Coordination</h1>
+  <div id="panel"></div>
+</main>
+
+<script src="assets/app.js"></script>
+<script src="assets/auth.js"></script>
+<script src="assets/api.js"></script>
+<script>
+renderAuthNav();
+
+const panel = document.getElementById('panel');
+const params = new URLSearchParams(location.search);
+const orderId = params.get('order');
+
+let allOrders = [];
+let allStock = [];
+let allLogistics = [];
+
+async function loadData() {
+  try {
+    allOrders = await OrdersAPI.getAll();
+    allStock = await StockAPI.getAll();
+    allLogistics = await LogisticsAPI.getAll();
+    render();
+  } catch (error) {
+    console.error('Error loading data:', error);
+    panel.innerHTML = '<div class="alert alert-danger">Failed to load data. Please try again.</div>';
+  }
+}
+
+function render() {
+  const role = AUTH.currentRole();
+
+  if (!role || role !== 'distributor') {
+    const loginUrl = 'login.html?next=' + encodeURIComponent(location.pathname + location.search);
+    panel.innerHTML = '<div class="alert alert-warning">This page is for distributors only. <a href="' + loginUrl + '">Sign in as a distributor</a> to schedule logistics.</div>';
+    return;
+  }
+
+  // Find order that needs logistics
+  let targetOrder = null;
+  if (orderId) {
+    targetOrder = allOrders.find(o => o.id === orderId);
+  } else {
+    targetOrder = allOrders.find(o => o.status === 'READY_FOR_LOGISTICS');
+  }
+
+  // Build the page content
+  let content = '';
+
+  // Show order selection panel if there's an order ready for logistics
+  if (targetOrder) {
+    const stock = allStock.find(s => s.id === targetOrder.stock_id) || {};
+    content += `
+      <div class="card mb-4">
+        <div class="card-body">
+          <h5 class="card-title">Schedule Logistics</h5>
+          <p class="mb-2">Order for <b>${stock.crop || 'N/A'}</b> — <b>${targetOrder.qty_kg || 0} kg</b>, total <b>R ${targetOrder.total || 0}</b></p>
+          <p class="text-muted small mb-3">Choose transport/storage option:</p>
+          <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-outline-success" onclick="scheduleLogistics('${targetOrder.id}', 'buyer')">Buyer-arranged (5% discount)</button>
+            <button class="btn btn-outline-primary" onclick="scheduleLogistics('${targetOrder.id}', 'platform')">Platform-arranged (no change)</button>
+            <button class="btn btn-outline-secondary" onclick="scheduleLogistics('${targetOrder.id}', 'external')">External courier (added cost)</button>
+          </div>
+        </div>
+      </div>`;
+  } else if (allOrders.filter(o => o.status === 'READY_FOR_LOGISTICS').length === 0) {
+    content += '<div class="alert alert-info mb-4">No orders currently ready for logistics scheduling.</div>';
+  }
+
+  // Show all logistics records in a table
+  if (allLogistics.length > 0) {
+    content += `
+      <h5 class="mb-3">All Logistics Records</h5>
+      <div class="table-responsive">
+        <table class="table table-striped align-middle">
+          <thead>
+            <tr>
+              <th>Logistics ID</th>
+              <th>Order ID</th>
+              <th>Mode</th>
+              <th>Carrier</th>
+              <th>Cost</th>
+              <th>Discount</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${allLogistics.map(log => {
+              const order = allOrders.find(o => o.id === log.order_id);
+              return `<tr>
+                <td><small class="text-muted">${log.id.substring(0, 8)}...</small></td>
+                <td><small class="text-muted">${log.order_id.substring(0, 8)}...</small></td>
+                <td><span class="badge bg-info">${log.mode}</span></td>
+                <td>${log.carrier || 'N/A'}</td>
+                <td>R ${log.cost || 0}</td>
+                <td>${(log.discount * 100).toFixed(0)}%</td>
+                <td><span class="badge bg-secondary">${log.status}</span></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } else {
+    content += '<div class="alert alert-info">No logistics records yet.</div>';
+  }
+
+  panel.innerHTML = content;
+}
+
+async function scheduleLogistics(orderId, mode) {
+  if (!orderId) return;
+
+  try {
+    // Calculate cost and discount based on mode
+    const order = allOrders.find(o => o.id === orderId);
+    let cost = 0;
+    let discount = 0;
+    let carrier = null;
+
+    if (mode === 'buyer') {
+      discount = 0.05;
+    } else if (mode === 'external') {
+      cost = Math.max(200, order.qty_kg * 0.5);
+      carrier = 'External Courier';
+    }
+
+    // Create logistics record
+    await LogisticsAPI.create({
+      order_id: orderId,
+      mode: mode,
+      cost: cost,
+      carrier: carrier,
+      status: 'SCHEDULED',
+      discount: discount
+    });
+
+    // Reload data and show success message
+    await loadData();
+    panel.innerHTML = '<div class="alert alert-success mb-4">Logistics scheduled via <b>' + mode + '</b>. Track in Orders and confirm delivery on arrival.</div>' + panel.innerHTML;
+
+    // Scroll to top to show success message
+    window.scrollTo(0, 0);
+  } catch (error) {
+    console.error('Error scheduling logistics:', error);
+    alert('Failed to schedule logistics. Please try again.');
+  }
+}
+
+loadData();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<footer class="bg-white mt-5 border-top">
+  <div class="container py-4 text-center small">
+    <div>Agrimarket — demo supply chain web app. See <a href="README.md">README</a> for project details and database schema.</div>
+    <div class="mt-2">&copy; 2025 Agrimarket Demo</div>
+  </div>
+</footer>
+</body></html>
